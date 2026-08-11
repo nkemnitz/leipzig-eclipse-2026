@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leipzig eclipse viewshed — 12 Aug 2026</title>
+<style>
+  /* Palette taken from the subject: a deep dusk-indigo ground (the sky at 20:10,
+     sun 3.4 deg up) with solar amber as the single accent. Neutrals are biased
+     toward the indigo rather than pure grey. Green/red are reserved strictly for
+     the semantic can-see / cannot-see answer and are never used decoratively. */
+  :root{
+    --bg:#0a0f1c; --panel:#111a2ee8; --line:#24304a; --tx:#e8edf7; --dim:#8896b0;
+    --good:#4cc38a; --warn:#f5a524; --bad:#e5484d; --accent:#f2b544;
+    --sun:#f2b544;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);
+    font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .panel{position:absolute;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;backdrop-filter:blur(12px);padding:12px 14px}
+  #hud{top:12px;left:12px;width:322px;max-height:calc(100% - 24px);overflow-y:auto}
+  #hud h1{margin:0 0 2px;font-size:15px;letter-spacing:.2px}
+  #hud .sub{color:var(--dim);font-size:11.5px;margin-bottom:10px}
+  #timebox{top:12px;left:50%;transform:translateX(-50%);width:min(560px,calc(100% - 24px));
+    text-align:center}
+  #tlabel{font-size:22px;font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:.5px}
+  #tmeta{color:var(--dim);font-size:11.5px;margin-bottom:8px}
+  #trow{display:flex;align-items:center;gap:10px}
+  input[type=range]{flex:1;accent-color:var(--accent)}
+  button{background:#21262d;color:var(--tx);border:1px solid var(--line);border-radius:7px;
+    padding:5px 10px;cursor:pointer;font-size:12px}
+  button:hover{background:#30363d}
+  button.on{background:var(--accent);border-color:var(--accent);color:#1a1206;font-weight:650}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .kv span:last-child,#tlabel,.spot i{font-variant-numeric:tabular-nums}
+  .grp{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0}
+  .lbl{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;
+    margin:11px 0 3px}
+  .note{color:var(--dim);font-size:10.5px;line-height:1.4}
+  #readout{position:absolute;right:12px;top:12px;width:296px}
+  #readout .big{font-size:15px;font-weight:600;margin-bottom:2px}
+  .kv{display:flex;justify-content:space-between;gap:8px;padding:2px 0;
+    border-bottom:1px solid #ffffff10}
+  .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  #sky{width:100%;height:130px;display:block;margin-top:8px;background:#0b0f14;
+    border:1px solid var(--line);border-radius:6px}
+  #spots{max-height:220px;overflow-y:auto;margin-top:4px}
+  .spot{padding:5px 7px;border-radius:6px;cursor:pointer;display:flex;
+    justify-content:space-between;gap:8px;border:1px solid transparent}
+  .spot:hover{background:#ffffff0d;border-color:var(--line)}
+  .spot b{font-weight:600}
+  .spot i{font-style:normal;color:var(--dim)}
+  #legend{position:absolute;left:12px;bottom:12px;font-size:11.5px;max-width:290px}
+  #legend .lrow{display:flex;align-items:flex-start;gap:7px;padding:1.5px 0}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-top:3px;
+    flex:0 0 auto}
+  #load{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg);
+    z-index:50;font-size:14px;color:var(--dim)}
+  #err{color:var(--bad);max-width:520px;text-align:center;line-height:1.6}
+  #lang{position:absolute;top:12px;right:12px;display:flex;gap:4px;z-index:5}
+  #lang button{padding:3px 8px;font-size:11px}
+  .foot{color:var(--dim);font-size:10px;margin-top:9px;line-height:1.4}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="lang">
+  <button id="lang-en" class="on">EN</button><button id="lang-de">DE</button>
+</div>
+
+<div id="timebox" class="panel">
+  <div id="tlabel">20:10</div>
+  <div id="tmeta">—</div>
+  <div id="trow">
+    <button id="play">▶</button>
+    <input id="time" type="range" min="0" max="16" value="10" step="1">
+    <button id="tomax" data-i18n="max">max</button>
+  </div>
+</div>
+
+<div id="hud" class="panel">
+  <h1 data-i18n="title">Where the eclipsed sun is visible</h1>
+  <div class="sub" data-i18n="subtitle">Leipzig · 12 Aug 2026 · computed from GeoSN 1 m DOM1</div>
+
+  <div class="lbl" data-i18n="surface">Surface colour</div>
+  <div class="grp" id="modes">
+    <button data-mode="0" class="on" data-i18n="mode0">Aerial + shadow</button>
+    <button data-mode="1" data-i18n="mode1">Can I see the sun?</button>
+  </div>
+  <div class="note" id="modehelp"></div>
+
+  <div class="lbl"><span data-i18n="exag">Vertical exaggeration</span> <span id="exlabel">2.0×</span></div>
+  <input id="exag" type="range" min="1" max="8" value="2" step="0.5" style="width:100%">
+
+  <div class="lbl" data-i18n="detail">Terrain mesh resolution</div>
+  <div class="grp" id="quality">
+    <button data-q="500" data-i18n="low">Low</button>
+    <button data-q="1000" class="on" data-i18n="med">Medium</button>
+    <button data-q="2000" data-i18n="high">High</button>
+  </div>
+  <div class="note" data-i18n="detailNote">How finely the ground surface is drawn.
+    Close in, 1 m aerial imagery and elevation stream in automatically regardless.</div>
+
+  <div class="lbl" data-i18n="canopyDetail">Tree canopy</div>
+  <div class="grp" id="canopy">
+    <button data-cd="0" class="on" data-i18n="cdCoarse">Coarse</button>
+    <button data-cd="1" data-i18n="cdFine">Detailed (1 m)</button>
+  </div>
+  <div class="note" data-i18n="canopyNote">Detailed canopy adds a second 1 m mesh per
+    streamed tile. It looks sharper up close and costs noticeably more memory.</div>
+
+  <div class="lbl" data-i18n="landmarks">Landmarks</div>
+  <div class="grp">
+    <button id="buildings" data-i18n="buildingsBtn">Buildings (LoD2)</button>
+  </div>
+  <div class="note" data-i18n="landmarkNote">Buildings are Leipzig's LoD2 model (2021),
+    drawn for orientation only. The sun answer comes from the 2023 1 m laser surface.</div>
+
+  <div class="lbl" data-i18n="spots">Recommended spots</div>
+  <div id="spots"></div>
+
+  <div class="foot" id="attrib"></div>
+</div>
+
+<div id="readout" class="panel">
+  <div class="big" id="rname" data-i18n="clickTitle">Click the map</div>
+  <div style="color:var(--dim);font-size:11.5px" id="rsub" data-i18n="clickHint">
+    Pick any point to see whether the sun clears its skyline.</div>
+  <div id="rkv"></div>
+  <canvas id="sky" width="560" height="260"></canvas>
+  <div class="note" style="margin-top:5px" data-i18n="skyHint">
+    Skyline (white) vs the sun's path (yellow). Where the yellow line is above the
+    white ridge, the sun is visible.</div>
+</div>
+
+<div id="legend" class="panel"></div>
+
+<div id="load"><div data-i18n="loading">Loading terrain…</div></div>
+
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.js" } }
+</script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

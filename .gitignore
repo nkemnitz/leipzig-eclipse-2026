@@ -1,0 +1,13 @@
+# Source data and intermediates: 27 GB of laser tiles, 1.4 GB of rasters. All of
+# it is re-derivable from the download_*.py scripts, and none of it is needed to
+# view the result -- viewer/data holds the baked output, which IS committed.
+# Root-anchored: an unanchored `data/` also matches viewer/data/, which is the
+# baked output the hosted page needs and must be committed.
+/data/
+out/_serve/
+out/*.ply
+venv3.13/
+de421.bsp
+__pycache__/
+.mypy_cache/
+*.pyc

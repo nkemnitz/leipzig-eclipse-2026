@@ -64,6 +64,25 @@
   #lang{position:absolute;top:12px;right:12px;display:flex;gap:4px;z-index:5}
   #lang button{padding:3px 8px;font-size:11px}
   .foot{color:var(--dim);font-size:10px;margin-top:9px;line-height:1.4}
+  #mtabs{display:none}
+  /* Phones: the three panels are 322px + 296px of fixed-width furniture anchored
+     to opposite corners, which on a 390px screen leaves no map at all. There they
+     become bottom sheets, all closed by default, one open at a time, driven by a
+     tab bar that sits where a thumb already is. */
+  @media (max-width:760px), (pointer:coarse) and (max-width:1000px){
+    #hud,#readout,#legend{position:fixed;left:8px;right:8px;width:auto;top:auto;
+      bottom:58px;max-height:54vh;overflow-y:auto;display:none;z-index:15}
+    #hud.open,#readout.open,#legend.open{display:block}
+    #legend{max-width:none}
+    #timebox{top:8px;width:calc(100% - 16px);padding:8px 10px}
+    #tlabel{font-size:19px}
+    #tmeta{margin-bottom:6px}
+    #mtabs{display:flex;position:fixed;left:8px;right:8px;bottom:8px;gap:6px;z-index:20}
+    #mtabs button{flex:1;padding:10px 4px;font-size:12px}
+    #lang{top:auto;bottom:58px;right:8px;z-index:16}
+    #sky{height:104px}
+    #spots{max-height:180px}
+  }
 </style>
 </head>
 <body>
@@ -149,6 +168,12 @@
 </div>
 
 <div id="legend" class="panel"></div>
+
+<div id="mtabs">
+  <button data-panel="hud" data-i18n="tabInfo">Settings</button>
+  <button data-panel="readout" data-i18n="tabPoint">Point</button>
+  <button data-panel="legend" data-i18n="tabLegend">Legend</button>
+</div>
 
 <div id="load"><div data-i18n="loading">Loading terrain…</div></div>
 

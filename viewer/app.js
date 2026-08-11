@@ -180,10 +180,11 @@ const I18N = {
     disclaimer:'A hobby project, offered as-is with no guarantees. It is a geometry '
       +'calculation from open data, not advice \u2014 check the sky, not this page, and never '
       +'look at the sun without proper eye protection.',
-    navHelp:'Drag to orbit \u00b7 right-drag or two fingers to pan \u00b7 scroll to zoom \u00b7 '
-      +'click the map to read out a point and anchor the view there \u00b7 click a spot below '
-      +'to fly to it.',
+    navHelp:'Mouse: drag to orbit, right-drag to pan, scroll to zoom. Touch: one finger to '
+      +'orbit, two to pan and pinch to zoom. Tap or click the map to read out that point and '
+      +'anchor the view there; pick a spot from the list to fly to it.',
     sortPct:'By sight lines', sortKm:'By distance',
+    tabInfo:'Settings', tabPoint:'Point', tabLegend:'Legend',
     walkTo:'best area is', wallShare:'terrain/building',
     clickHint:'Pick any point to see whether the sun clears its skyline.',
     skyHint:"Skyline (white) vs the sun's path (yellow). Where the yellow line is "
@@ -229,10 +230,11 @@ const I18N = {
     disclaimer:'Ein Hobbyprojekt, ohne Gew\u00e4hr. Es ist eine Geometrieberechnung aus '
       +'offenen Daten, keine Empfehlung \u2013 verlass dich auf den Himmel, nicht auf diese '
       +'Seite, und schau nie ohne geeigneten Augenschutz in die Sonne.',
-    navHelp:'Ziehen zum Drehen \u00b7 Rechtsziehen oder zwei Finger zum Verschieben \u00b7 '
-      +'Scrollen zum Zoomen \u00b7 Klick auf die Karte liest einen Punkt aus und verankert die '
-      +'Ansicht dort \u00b7 Klick auf einen Standort unten fliegt hin.',
+    navHelp:'Maus: ziehen zum Drehen, rechts ziehen zum Verschieben, scrollen zum Zoomen. '
+      +'Touch: ein Finger dreht, zwei verschieben und zoomen. Tippen bzw. klicken liest den '
+      +'Punkt aus und verankert die Ansicht; ein Standort aus der Liste fliegt dorthin.',
     sortPct:'Nach Sichtlinien', sortKm:'Nach Entfernung',
+    tabInfo:'Einstellungen', tabPoint:'Punkt', tabLegend:'Legende',
     walkTo:'beste Fläche liegt', wallShare:'Gelände/Gebäude',
     clickHint:'Beliebigen Punkt wählen, um zu sehen, ob die Sonne dort über den Horizont reicht.',
     skyHint:'Horizontlinie (weiß) und Sonnenbahn (gelb). Wo die gelbe Linie über der '
@@ -1036,6 +1038,9 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const hit = ray.intersectObjects(targets, false)[0];
   if (!hit) return;
   describe(hit.point.x, hit.point.z, null);
+  // On a phone the readout sheet is closed, so a tap would compute an answer the
+  // user never sees. Surface it.
+  if (isPhone.matches) showPanel('readout');
   // Anchor the orbit/zoom pivot on the clicked ground. Without this the pivot
   // stays wherever the last flyTo left it, so zooming from anywhere else drives
   // the camera toward a point hanging in the air.
@@ -1092,7 +1097,10 @@ function renderSpots() {
         + `${s.km_from_markt != null ? s.km_from_markt.toFixed(1) + ' km · ' : ''}`
         + `${T('wallShare')} ${v.wall}%`;
     }
-    el.onclick = () => flyTo(v ? { ...s, utm_x: v.best_x, utm_y: v.best_y } : s);
+    el.onclick = () => {
+      flyTo(v ? { ...s, utm_x: v.best_x, utm_y: v.best_y } : s);
+      if (isPhone.matches) showPanel(null);   // else you land behind the sheet
+    };
     spotsEl.appendChild(el);
   }
 }
@@ -1122,6 +1130,20 @@ $('#modes').onclick = (e) => {
   $('#modehelp').textContent = T('mh' + uniforms.uMode.value);
   buildLegend();
 };
+// Mobile sheets. Only one may be open, and tapping its own tab closes it, so the
+// map is never permanently buried under a panel on a small screen.
+function showPanel(name) {
+  for (const id of ['hud', 'readout', 'legend']) {
+    $('#' + id).classList.toggle('open', id === name);
+  }
+  [...$('#mtabs').children].forEach((c) => c.classList.toggle('on', c.dataset.panel === name));
+}
+$('#mtabs').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  showPanel($('#' + b.dataset.panel).classList.contains('open') ? null : b.dataset.panel);
+};
+const isPhone = matchMedia('(max-width:760px), (pointer:coarse) and (max-width:1000px)');
+
 $('#lang-en').onclick = () => { LANG = 'en'; applyLang(); };
 $('#lang-de').onclick = () => { LANG = 'de'; applyLang(); };
 $('#canopy').onclick = (e) => {

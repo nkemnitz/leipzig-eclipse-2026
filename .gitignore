@@ -4,8 +4,10 @@
 # Root-anchored: an unanchored `data/` also matches viewer/data/, which is the
 # baked output the hosted page needs and must be committed.
 /data/
-out/_serve/
-out/*.ply
+# Build products and verification output. The screenshots under out/shots are
+# debug artefacts from the headless checks -- 42 MB of them reached the first
+# published commit because this only excluded _serve and *.ply.
+/out/
 venv3.13/
 de421.bsp
 __pycache__/

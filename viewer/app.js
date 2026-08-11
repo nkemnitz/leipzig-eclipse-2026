@@ -147,7 +147,9 @@ const uniforms = {
   uPlaneSel: { value: new THREE.Vector4(1, 0, 0, 0) },
   uBitPow: { value: 1 },
   uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-  uMode: { value: 0 },
+  // The sun-visibility layer is the point of the page, so it is what you land
+  // on. Keep this in step with which #modes button carries class="on".
+  uMode: { value: 1 },
   uMarginLo: { value: meta.info.margin_lo },
   uMarginHi: { value: meta.info.margin_hi },
   uHorizonLo: { value: meta.info.horizon_lo },
@@ -444,7 +446,8 @@ const canopyMaterial = new THREE.ShaderMaterial({
   fragmentShader: /* glsl */`
     precision highp float;
     varying vec2 vUv; varying vec3 vNormalW;
-    uniform sampler2D uCanopy, uOrtho, uOrtho10, uOrtho01, uOrtho11, uSurface, uGround, uInfo, uCover;
+    uniform sampler2D uCanopy, uOrtho, uOrtho10, uOrtho01, uOrtho11, uSurface, uInfo, uCover;
+    uniform sampler2D uVoxWall, uVoxTrans; uniform vec3 uKeyW;
     uniform int uCanopyDetail;
     uniform vec4 uPlaneSel; uniform float uBitPow;
     vec3 orthoAt(vec2 uv){
@@ -454,6 +457,7 @@ const canopyMaterial = new THREE.ShaderMaterial({
       return q.x < 0.5 ? texture2D(uOrtho01, l).rgb : texture2D(uOrtho11, l).rgb;
     }
     uniform vec3 uSunDir; uniform int uMode;
+    ${CLASS_GLSL}
     float planeC(sampler2D t, vec2 uv){
       float b = floor(dot(texture2D(t, uv), uPlaneSel) * 255.0 + 0.5);
       return mod(floor(b / uBitPow), 2.0);
@@ -471,8 +475,15 @@ const canopyMaterial = new THREE.ShaderMaterial({
       vec3 col = leaf * (vec3(0.36,0.44,0.54) * 1.2
                  + vec3(1.20,0.88,0.58) * lit * ndl * 2.3);
       if (uMode == 1){
-        float litG = planeC(uGround, vUv);
-        col = mix(col*0.5, litG > 0.5 ? vec3(0.25,0.85,0.35) : vec3(0.75,0.20,0.18), 0.45);
+        // This surface was left on the OLD binary sunlit mask when the analysis
+        // moved to the voxel classes, so it painted a green/red answer from the
+        // model that had already been replaced -- and disagreed with the terrain
+        // underneath it. Full strength, not dimmed: a canopy top is never
+        // "standable", so dimming by that flag hides the answer exactly where the
+        // trees are, which is where the question is hardest.
+        vec3 tint = classColour(planeC(uVoxWall, vUv),
+                                dot(texture2D(uVoxTrans, vUv).rgb, uKeyW));
+        col = mix(col * 0.5, tint, 0.74);
       }
       gl_FragColor = vec4(pow(col, vec3(0.4545)), 1.0);
     }`,
@@ -656,7 +667,12 @@ const detailMaterial = (map, packed, isCanopy) => new THREE.ShaderMaterial({
       if (uMode == 1){
         vec3 tint = classColour(planeD(uVoxWall, guv),
                                 dot(texture2D(uVoxTrans, guv).rgb, uKeyW));
-        col = mix(col * 0.55, mix(col*0.5, tint, 0.74), max(standable, 0.35));
+        // On the canopy mesh the standable flag is always 0, so dimming by it
+        // faded the class colour to 35% and the blocked-red vanished wherever
+        // detailed canopy was drawn. The ground's standability still dims the
+        // ground itself.
+        float k = uIsCanopy == 1 ? 1.0 : max(standable, 0.35);
+        col = mix(col * 0.55, mix(col*0.5, tint, 0.74), k);
       }
       gl_FragColor = vec4(pow(col, vec3(0.4545)), 1.0);
     }`,

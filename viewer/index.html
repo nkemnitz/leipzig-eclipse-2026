@@ -52,7 +52,10 @@
     justify-content:space-between;gap:8px;border:1px solid transparent}
   .spot:hover{background:#ffffff0d;border-color:var(--line)}
   .spot b{font-weight:600}
-  .spot i{font-style:normal;color:var(--dim)}
+  .spot i{font-style:normal;color:var(--dim);display:flex;gap:9px;flex:0 0 auto}
+  .spot .pct{min-width:38px;text-align:right;color:var(--tx);font-weight:600}
+  .spot .km{min-width:46px;text-align:right;opacity:.7}
+  .spot b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #legend{position:absolute;left:12px;bottom:12px;font-size:11.5px;max-width:290px}
   #legend .lrow{display:flex;align-items:flex-start;gap:7px;padding:1.5px 0}
   .disclaimer{border-left:2px solid var(--warn);padding-left:7px;margin:6px 0 8px}

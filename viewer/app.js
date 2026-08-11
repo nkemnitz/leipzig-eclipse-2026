@@ -1088,10 +1088,13 @@ function renderSpots() {
     const v = s.vox;
     const el = document.createElement('div');
     el.className = 'spot';
-    const right = spotSort === 'km'
-      ? (s.km_from_markt != null ? s.km_from_markt.toFixed(1) + ' km' : '')
-      : (v ? Math.round(v.best) + '%' : '');
-    el.innerHTML = `<b>${s.label}</b><i>${right}</i>`;
+    // Both numbers on every row: the sort buttons change the ORDER, not what you
+    // can see. Swapping the visible column meant answering "how far is the 100% one"
+    // required toggling sort and finding the row again.
+    const pct = v ? Math.round(v.best) + '%' : '–';
+    const km = s.km_from_markt != null ? s.km_from_markt.toFixed(1) + ' km' : '';
+    el.innerHTML = `<b>${s.label}</b><i><span class="pct">${pct}</span>`
+      + `<span class="km">${km}</span></i>`;
     if (v) {
       el.title = `${Math.round(v.best)}% · ${T('walkTo')} ${v.walk_m} m · `
         + `${s.km_from_markt != null ? s.km_from_markt.toFixed(1) + ' km · ' : ''}`

@@ -141,6 +141,9 @@ const uniforms = {
   // falls smoothly and monotonically as the sun sinks, so interpolating between
   // three keys costs far less accuracy than the 8 m grid already spends.
   uKeyW: { value: new THREE.Vector3(0, 1, 0) },
+  // Declared here, not assigned later: `shared` is built before that point and
+  // would capture undefined, leaving the canopy material's uniform unbound.
+  uCanopyDetail: { value: 0 },
   uPlaneSel: { value: new THREE.Vector4(1, 0, 0, 0) },
   uBitPow: { value: 1 },
   uSunDir: { value: new THREE.Vector3(0, 1, 0) },
@@ -174,6 +177,13 @@ const I18N = {
     landmarkNote:"Buildings are Leipzig's LoD2 model (2021), drawn for orientation only. "
       +"The sun answer comes from the 2023 1 m laser surface.",
     spots:'Best spots (sight lines to the sun)', clickTitle:'Click the map',
+    disclaimer:'A hobby project, offered as-is with no guarantees. It is a geometry '
+      +'calculation from open data, not advice \u2014 check the sky, not this page, and never '
+      +'look at the sun without proper eye protection.',
+    navHelp:'Drag to orbit \u00b7 right-drag or two fingers to pan \u00b7 scroll to zoom \u00b7 '
+      +'click the map to read out a point and anchor the view there \u00b7 click a spot below '
+      +'to fly to it.',
+    sortPct:'By sight lines', sortKm:'By distance',
     walkTo:'best area is', wallShare:'terrain/building',
     clickHint:'Pick any point to see whether the sun clears its skyline.',
     skyHint:"Skyline (white) vs the sun's path (yellow). Where the yellow line is "
@@ -216,6 +226,13 @@ const I18N = {
       +'aus dem Baumkataster – beide dienen nur der Orientierung. Die Sonnenberechnung '
       +'nutzt das 1-m-Laseroberflächenmodell von 2023.',
     spots:'Beste Standorte (Sichtlinien zur Sonne)', clickTitle:'Karte anklicken',
+    disclaimer:'Ein Hobbyprojekt, ohne Gew\u00e4hr. Es ist eine Geometrieberechnung aus '
+      +'offenen Daten, keine Empfehlung \u2013 verlass dich auf den Himmel, nicht auf diese '
+      +'Seite, und schau nie ohne geeigneten Augenschutz in die Sonne.',
+    navHelp:'Ziehen zum Drehen \u00b7 Rechtsziehen oder zwei Finger zum Verschieben \u00b7 '
+      +'Scrollen zum Zoomen \u00b7 Klick auf die Karte liest einen Punkt aus und verankert die '
+      +'Ansicht dort \u00b7 Klick auf einen Standort unten fliegt hin.',
+    sortPct:'Nach Sichtlinien', sortKm:'Nach Entfernung',
     walkTo:'beste Fläche liegt', wallShare:'Gelände/Gebäude',
     clickHint:'Beliebigen Punkt wählen, um zu sehen, ob die Sonne dort über den Horizont reicht.',
     skyHint:'Horizontlinie (weiß) und Sonnenbahn (gelb). Wo die gelbe Linie über der '
@@ -256,6 +273,7 @@ function applyLang() {
   $('#lang-de').classList.toggle('on', LANG === 'de');
   $('#modehelp').textContent = T('mh' + uniforms.uMode.value);
   buildLegend();
+  if (typeof renderSpots === 'function') renderSpots();
   setTime(ti);
   if (current) describe(current.wx, current.wz, current.label);
 }
@@ -399,7 +417,7 @@ const shared = {
   uSurface: uniforms.uSurface,
   uTerrain: uniforms.uTerrain, uVoxWall: uniforms.uVoxWall,
   uVoxTrans: uniforms.uVoxTrans, uKeyW: uniforms.uKeyW,
-  uPlaneSel: uniforms.uPlaneSel,
+  uPlaneSel: uniforms.uPlaneSel, uCanopyDetail: uniforms.uCanopyDetail,
   uBitPow: uniforms.uBitPow, uSunDir: uniforms.uSunDir, uMode: uniforms.uMode,
 };
 
@@ -425,6 +443,7 @@ const canopyMaterial = new THREE.ShaderMaterial({
     precision highp float;
     varying vec2 vUv; varying vec3 vNormalW;
     uniform sampler2D uCanopy, uOrtho, uOrtho10, uOrtho01, uOrtho11, uSurface, uGround, uInfo, uCover;
+    uniform int uCanopyDetail;
     uniform vec4 uPlaneSel; uniform float uBitPow;
     vec3 orthoAt(vec2 uv){
       vec2 q = step(vec2(0.5), uv);
@@ -438,7 +457,11 @@ const canopyMaterial = new THREE.ShaderMaterial({
       return mod(floor(b / uBitPow), 2.0);
     }
     void main(){
-      if (texture2D(uCover, vUv).r > 0.5) discard;    // streamed detail covers this
+      // Yield to a streamed tile only when that tile carries its own canopy. With
+      // canopy detail set to Coarse the tile supplies terrain alone, so discarding
+      // here deleted the blanket and replaced it with nothing -- the canopy
+      // visibly "unloaded" wherever you looked closely.
+      if (uCanopyDetail == 1 && texture2D(uCover, vUv).r > 0.5) discard;
       if (texture2D(uCanopy, vUv).b < 0.5) discard;   // eroded canopy mask
       float lit = planeC(uSurface, vUv);
       float ndl = max(dot(normalize(vNormalW), uSunDir), 0.0);
@@ -1047,15 +1070,39 @@ const spotsEl = $('#spots');
 // it listed the Fockeberg at +3.4 deg while the canopy layer beside it showed the
 // same hill attenuated. Clicking flies to the best standing area, not to the
 // nominal marker, so the number and the place you land on are the same place.
-meta.spots.slice(0, 40).forEach((s) => {
-  const v = s.vox;
-  const el = document.createElement('div');
-  el.className = 'spot';
-  el.innerHTML = `<b>${s.label}</b><i>${v ? Math.round(v.best) + '%' : ''}</i>`;
-  if (v) el.title = `${T('walkTo')} ${v.walk_m} m · ${T('wallShare')} ${v.wall}%`;
-  el.onclick = () => flyTo(v ? { ...s, utm_x: v.best_x, utm_y: v.best_y } : s);
-  spotsEl.appendChild(el);
-});
+let spotSort = 'pct';
+function renderSpots() {
+  const rows = meta.spots.slice();
+  // Entries with no voxel score sort last either way rather than pretending to a 0.
+  rows.sort((a, b) => {
+    if (spotSort === 'km') return (a.km_from_markt ?? 1e9) - (b.km_from_markt ?? 1e9);
+    return ((b.vox ? b.vox.best : -1) - (a.vox ? a.vox.best : -1));
+  });
+  spotsEl.innerHTML = '';
+  for (const s of rows.slice(0, 40)) {
+    const v = s.vox;
+    const el = document.createElement('div');
+    el.className = 'spot';
+    const right = spotSort === 'km'
+      ? (s.km_from_markt != null ? s.km_from_markt.toFixed(1) + ' km' : '')
+      : (v ? Math.round(v.best) + '%' : '');
+    el.innerHTML = `<b>${s.label}</b><i>${right}</i>`;
+    if (v) {
+      el.title = `${Math.round(v.best)}% · ${T('walkTo')} ${v.walk_m} m · `
+        + `${s.km_from_markt != null ? s.km_from_markt.toFixed(1) + ' km · ' : ''}`
+        + `${T('wallShare')} ${v.wall}%`;
+    }
+    el.onclick = () => flyTo(v ? { ...s, utm_x: v.best_x, utm_y: v.best_y } : s);
+    spotsEl.appendChild(el);
+  }
+}
+renderSpots();
+$('#sort').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  [...$('#sort').children].forEach((c) => c.classList.toggle('on', c === b));
+  spotSort = b.dataset.sort;
+  renderSpots();
+};
 $('#attrib').textContent = meta.attribution;
 
 // controls
@@ -1081,6 +1128,7 @@ $('#canopy').onclick = (e) => {
   const b = e.target.closest('button'); if (!b) return;
   [...$('#canopy').children].forEach((c) => c.classList.toggle('on', c === b));
   canopyDetail = b.dataset.cd === '1';
+  uniforms.uCanopyDetail.value = canopyDetail ? 1 : 0;
   // Already-streamed tiles were built with the old setting, so drop them and let
   // updateDetail re-stream; otherwise the toggle only affects tiles you visit next.
   for (const [k, g] of detailTiles) {

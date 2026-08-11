@@ -2,6 +2,11 @@
 
 **[▶ Open the viewer](https://nkemnitz.github.io/leipzig-eclipse-2026/)**
 
+> **A hobby project, offered as-is with no guarantees.** This is a geometry
+> calculation from open data, not advice. The model has known limits, listed
+> honestly further down, and the sky has weather. Go and look — and **never look at
+> the sun without proper eye protection**, eclipsed or not.
+
 On 12 August 2026 a partial solar eclipse reaches maximum over Leipzig at
 **20:10:35 CEST**, with the sun **3.4° above the horizon** and **86% obscured**.
 Sunset follows at 20:38:26, with the sun still about a third covered.

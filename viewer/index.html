@@ -55,6 +55,7 @@
   .spot i{font-style:normal;color:var(--dim)}
   #legend{position:absolute;left:12px;bottom:12px;font-size:11.5px;max-width:290px}
   #legend .lrow{display:flex;align-items:flex-start;gap:7px;padding:1.5px 0}
+  .disclaimer{border-left:2px solid var(--warn);padding-left:7px;margin:6px 0 8px}
   .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-top:3px;
     flex:0 0 auto}
   #load{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg);
@@ -85,6 +86,12 @@
 <div id="hud" class="panel">
   <h1 data-i18n="title">Where the eclipsed sun is visible</h1>
   <div class="sub" data-i18n="subtitle">Leipzig · 12 Aug 2026 · computed from GeoSN 1 m DOM1</div>
+  <div class="note disclaimer" data-i18n="disclaimer">A hobby project, offered as-is with no
+    guarantees. It is a geometry calculation from open data, not advice — check the sky, not
+    this page, and never look at the sun without proper eye protection.</div>
+  <div class="note" data-i18n="navHelp">Drag to orbit · right-drag or two fingers to pan ·
+    scroll to zoom · click the map to read out a point and anchor the view there · click a
+    spot below to fly to it.</div>
 
   <div class="lbl" data-i18n="surface">Surface colour</div>
   <div class="grp" id="modes">
@@ -121,6 +128,10 @@
     drawn for orientation only. The sun answer comes from the 2023 1 m laser surface.</div>
 
   <div class="lbl" data-i18n="spots">Recommended spots</div>
+  <div class="grp" id="sort">
+    <button data-sort="pct" class="on" data-i18n="sortPct">By sight lines</button>
+    <button data-sort="km" data-i18n="sortKm">By distance</button>
+  </div>
   <div id="spots"></div>
 
   <div class="foot" id="attrib"></div>

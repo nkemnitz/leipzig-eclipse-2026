@@ -3,11 +3,13 @@
 # view the result -- viewer/data holds the baked output, which IS committed.
 # Root-anchored: an unanchored `data/` also matches viewer/data/, which is the
 # baked output the hosted page needs and must be committed.
-/data/
+# No trailing slash: these are symlinks to /mnt/d now, and a `dir/` pattern
+# matches only real directories, so git started reporting them as untracked.
+/data
 # Build products and verification output. The screenshots under out/shots are
 # debug artefacts from the headless checks -- 42 MB of them reached the first
 # published commit because this only excluded _serve and *.ply.
-/out/
+/out
 venv3.13/
 de421.bsp
 __pycache__/
